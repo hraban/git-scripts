@@ -10,7 +10,11 @@ function usage {
     >&2 echo "Usage:"
     >&2 echo
     >&2 echo "  git graft --abort"
-    >&2 echo "  git graft BASE-BRANCH"
+    >&2 echo "  git graft [ONTO [FROM]]"
+    >&2 echo
+    >&2 echo "Example:"
+    >&2 echo
+    >&2 echo "  git graft master old-master"
 }
 
 function abort {
@@ -51,17 +55,16 @@ function branch-contains {
 }
 
 function todo {
-    ref="${1?Usage: git graft <ROOT> [onto]}"
-    master="${2-master}"
-    base="$(git merge-base --fork-point "$ref" "$master" || true)"
-    if [[ -z "$base" ]]; then
-        base="$(git merge-base "$ref" "$master")"
+    onto="${1-master}"
+    from="${2-$(git merge-base --fork-point HEAD "$onto" || true)}"
+    if [[ -z "$from" ]]; then
+        from="$(git merge-base HEAD "$onto")"
     fi
-    branch-contains "$ref" | while read b ; do
+    branch-contains HEAD | while read b ; do
         echo git checkout --quiet "'$b'"
-        echo git rebase "'$base'" --onto "'$master'"
-        base="$(git rev-parse "$b")"
-        master="$b"
+        echo git rebase "'$from'" --onto "'$onto'"
+        from="$(git rev-parse "$b")"
+        onto="$b"
     done
 }
 
@@ -88,7 +91,7 @@ function continue {
 
 function build-todo {
     ensure-not-in-progress
-    todo "$@" > "$todof"
+    todo "$@" | sponge "$todof"
 }
 
 function main {
@@ -96,12 +99,7 @@ function main {
     continue
 }
 
-if [[ "$#" -lt 1 ]]; then
-    usage
-    exit 1
-fi
-
-case "$1" in
+case "${1-}" in
     help | --help | -h)
         usage
         ;;
