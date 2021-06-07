@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#
+# Non-destructively pull from origin as much as possible
+function updog {
+	master="${1:-master}"
+	current_branch="$(git rev-parse --abbrev-ref HEAD)"
+	git fetch -p
+	git commit-graph write --append
+	if git merge-base --is-ancestor "$master" "origin/$master"; then
+		if [[ "$current_branch" == "$master" ]]; then
+			echo "Not updating $master: currently on $master branch"
+		else
+			git branch -f "$master" origin/"$master"
+		fi
+	else
+		echo "Not updating $master: origin/$master and master have diverged"
+	fi
+}
+
+set -euo pipefail
+updog "$@"
